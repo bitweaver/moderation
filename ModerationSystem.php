@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version $Header: /cvsroot/bitweaver/_bit_moderation/ModerationSystem.php,v 1.1 2008/01/22 21:13:44 nickpalmer Exp $
+ * @version $Header: /cvsroot/bitweaver/_bit_moderation/ModerationSystem.php,v 1.2 2008/01/23 16:02:02 nickpalmer Exp $
  *
  * +----------------------------------------------------------------------+
  * | Copyright ( c ) 2008, bitweaver.org
@@ -23,7 +23,7 @@
  * can use to register things for moderation and
  *
  * @author   nick <nick@sluggardy.net>
- * @version  $Revision: 1.1 $
+ * @version  $Revision: 1.2 $
  * @package  moderation
  */
 
@@ -41,7 +41,9 @@ define( 'MODERATION_DELETE', "Delete" );
 */
 define( 'MODERATION_DEVELOPMENT', TRUE );
 
-class ModerationSystem {
+require_once( LIBERTY_PKG_PATH . 'LibertyBase.php' );
+
+class ModerationSystem extends LibertyBase {
 
 	/**
 	 * The package registrations
@@ -66,18 +68,69 @@ class ModerationSystem {
     public requestModeration( $pPackage, $pType,
 							  $pModerationUser = NULL,
 							  $pModerationGroup = NULL,
-							  $pContentId = NULL
-							  $pRequest = NULL ) {
-		/* TODO: Validate and insert the request */
+							  $pContentId = NULL,
+							  $pRequest = NULL,
+							  $pState = PENDING_MODERATION ) {
+		global $gBitSystem, $gBitUser;
+		$moderationId = -1;
+
+		// Validate package
+		if ( ! empty( $mPackages[$pPackage] ) ) {
+			// Validate type
+			if ( ! empty( $mPackages[$pPackage]['types'][$pType] ) ) {
+				// Validate that we have a user or group
+				if ( ! ( empty( $pModerationUser ) and
+						 empty( $pModerationGroup ) ) ) {
+
+					// Do the storage intot he right table
+					$table = BIT_DB_PREFIX."moderation";
+
+					$store = array();
+					$store['moderation_user_id'] = $pModerationUser;
+					$store['moderation_group_id'] = $pModerationGroup;
+					$store['source_user_id'] = $gBitUser->mUserId;
+					$store['content_id'] = $pContentId;
+					$store['package'] = $pPackage;
+					$store['type'] = $pType;
+					$store['request'] = $pRequest;
+
+					// Keeping the transaction as short as possible
+					$this->mDb->StartTrans();
+					$store['moderation_id'] = $this->mDb->GenID( 'moderation_post_id_seq' );
+					$this->mDb->associateInsert($table, $store);
+
+					$this->mDb->CompleteTrans();
+
+					// Setup the return value
+					$moderationId = $store['moderation_id'];
+				}
+				else {
+					$gBitSystem->fatalError(tra("Moderation user or moderation group must be set."));
+				}
+			}
+			else {
+				$gBitSystem->fatalError(tra("Unknown moderation type for package:").$pPackage.tra(" type: ").$pType);
+			}
+		}
+		else {
+			$gBitSystem->fatalError(tra("Attempt to add moderation for unregistered package: ").$pPackage);
+		}
+
+		return $moderationId;
 	}
 
     /**
 	 * Register the callback function for a given package. When status
 	 * on a packages queue changes this function will be called.
 	 *
-	 * The function should have the following API:
+	 * The function should have the following API: boolean
 	 * handleModeration($pModeration) Where $pModeration is an array
-	 * with all of the information in the moderation table.
+	 * with all of the information in the moderation table. The
+	 * function should return TRUE if the transition should be stored
+	 * and an error mesage to be displayed to the user otherwise. This
+	 * gives packages the oportunity to error out their operations
+	 * without causing the state to change and to have the moderation
+	 * system display the error message.
 	 *
 	 * $pTransitions gives the state transition table (as an array) for
 	 * the package so that the moderation UI knows how to display
@@ -90,10 +143,10 @@ class ModerationSystem {
 	 * as required for their particular moderation processes. At least
 	 * one state must lead to MODERATION_DELETE.
 	 *
-	 * PENDING is the start state for all requests. MODERATION_DELETE
-	 * is a special state which causes the moderation system to delete
-	 * the moderation request from the system after making the callback
-	 * to the package.
+	 * PENDING is the default start state for all
+	 * requests. MODERATION_DELETE is a special state which causes the
+	 * moderation system to delete the moderation request from the
+	 * system after making the callback to the package.
 	 *
 	 * The most simple example is:
 	 * $pTransitions = array( "content" =>
@@ -122,6 +175,11 @@ class ModerationSystem {
 	 * 					   		   MODERATION_REJECTED => MODERATION_DELETE,
 	 *							   MODERATION_APPROVED => MODERATION_DELETE,
 	 *							   ) );
+	 *
+	 * Note: If you define MODERATION_DEVELOPMENT in your code
+	 * then a non-exhaustive attempt to verify your packages
+	 * transition table will be made. See validateTransitions for
+	 * more information on this check.
 	 */
     public registerModerationListener( $pPackage, $pFunction, $pTransitions ) {
 		global $gBitSystem;
@@ -153,13 +211,13 @@ class ModerationSystem {
 				$hasPending = $hasApproved = $hasRejected = $hasDelete = false;
 				if ( ( ! is_array( $states ) ) or
 					 count( array_keys( $states ) ) == 0 ) {
-					$gBitSystem->fatalError("Invalid transition map given to the moderation system by the $pPackage package. $type does not lead to a state array.");
+					$gBitSystem->fatalError(tra("Invalid transition map given to the moderation system by the ").$pPackage.tra(" package. Type: ").$type.tra(" does not lead to a state array.") );
 				}
 				else {
 					// Make sure that a state goes somewhere
 					foreach ( $states as $state => $results ) {
 						if ( $results == NULL ) {
-							$gBitSystem->fatalError("Invalid transition map given to the moderation system by the $pPackage package. $state goes nowhere.");
+							$gBitSystem->fatalError( tra("Invalid transition map given to the moderation system by the ").$pPackage.tra(" package. Type: ").$type.tra(" state: ").$state.tra(" goes nowhere.") );
 						}
 						// Make sure we have the required origin states
 						if ( $state == MODERATION_PENDING ) {
@@ -192,11 +250,75 @@ class ModerationSystem {
 	}
 
 	/**
-	 * Sets the reply for a given request
+	 * Sets the reply for a given request and triggers
+	 * the callback to the package.
 	 */
-	public setModerationReply( $pRequestId, $pReply )
+	public setModerationReply( $pRequestId, $pStatus, $pReply = NULL )
 	{
-		/* TODO: Set the reply for a moderation */
+		global $gBitSystem, $gBitUser;
+
+		// Load the information
+		$moderationInfo = $this->getModeration( $pRequestId );
+		if ( ! empty( $moderationInfo ) ) {
+			// Validate that the current user is a moderator
+			if ( $gBitUser->mUserId == $moderationInfo['moderator_user_id'] or
+				 $gBitUser->isInGroup( $moderationInfo['moderator_group_id'] ) ) {
+
+				// Some shorthands for current state
+				$pkg = $moderationInfo['package'];
+				$type = $moderationInfo['type'];
+				$state = $moderationInfo['state'];
+				// Validate that we are making a valid transition
+				if (! empty( $mPackages[$pkg]['transitions'][$type][$state][$pStatus] ) ) {
+					$moderationInfo['last_status'] = $state;
+					$moderationInfo['status'] = $pStatus;
+					if ( ! empty($pReply) ) {
+						$moderationInfo['reply'] = $pReply;
+					}
+
+					// We start the transaction now so that the update
+					// to status is bundled with package updates
+					$this->mDb->StartTrans();
+
+					// Make the callback and check the reply from the package.
+					$result = $mPackages[$pkg]['callback']($moderationInfo);
+					if ( $result == TRUE ) {
+						// Do the SQL dance
+						$table = BIT_DB_PREFIX."moderation";
+						$locId = array('moderation_id' => $moderationInfo['moderation_id']);
+						unset($moderationInfo['moderation_id']);
+						$this->mDb->associateUpdate( $table, $moderationInfo, $locId);
+						$this->mDb->CompleteTrans();
+					}
+					else {
+						// Just in case rollback any changes.
+						$this->mDb->RollbackTrans();
+						$gBitSystem->fatalError(tra("Error with moderation:").$result);
+					}
+				}
+				else {
+					$gBitSystem->fatalError(tra("Attempt to change to an invalid state for moderation: ").$pRequestId.tra(" currently in: ").$state.tra(" going to: ").$pStatus);
+				}
+			}
+			else {
+				$gBitSystem->setHttpStatus(403);
+				$gBitSystem->fatalError(tra("Unable to set moderation reply. You are not a moderator for this moderation request."));
+			}
+		}
+		else {
+			$gBitSystem->setHttpStatus(404);
+			$gBitSystem->fatalError(tra("Unable to set moderation reply. Moderation with id: ").$pRequestId.tra(" could not be found."));
+		}
+	}
+
+	/**
+	 * Loads the data for a given moderation id.
+	 */
+	public getModeration( $pRequestId ) {
+		$query = "SELECT * from `".BIT_DB_PREFIX."moderation` WHERE `moderation_id` = ?";
+		$result = $this->mDb->getArray($query, array($pRequestId));
+
+		return $result;
 	}
 
 	/**
