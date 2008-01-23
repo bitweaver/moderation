@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version $Header: /cvsroot/bitweaver/_bit_moderation/ModerationSystem.php,v 1.2 2008/01/23 16:02:02 nickpalmer Exp $
+ * @version $Header: /cvsroot/bitweaver/_bit_moderation/ModerationSystem.php,v 1.3 2008/01/23 16:50:12 nickpalmer Exp $
  *
  * +----------------------------------------------------------------------+
  * | Copyright ( c ) 2008, bitweaver.org
@@ -23,7 +23,7 @@
  * can use to register things for moderation and
  *
  * @author   nick <nick@sluggardy.net>
- * @version  $Revision: 1.2 $
+ * @version  $Revision: 1.3 $
  * @package  moderation
  */
 
@@ -41,9 +41,9 @@ define( 'MODERATION_DELETE', "Delete" );
 */
 define( 'MODERATION_DEVELOPMENT', TRUE );
 
-require_once( LIBERTY_PKG_PATH . 'LibertyBase.php' );
+require_once( LIBERTY_PKG_PATH . 'LibertyContent.php' );
 
-class ModerationSystem extends LibertyBase {
+class ModerationSystem extends LibertyContent {
 
 	/**
 	 * The package registrations
@@ -329,13 +329,56 @@ class ModerationSystem extends LibertyBase {
 	 * moderator_group_id - A group_id or array of ids for the moderators.
 	 * package - The name of the package to restrict to.
 	 * type - The type of moderation to restrict to.
-	 * state - The state of the moderations to restrict to.
+	 * status - The status of the moderations to restrict to.
 	 * source_user_id - The user_id of the creating user.
 	 * content_id - The content_id to retrict to.
 	 *
 	 */
 	public getList( $pListHash ) {
+		// Because this links to liberty_content via content_id we
+		// use services sql to be able to protect the content_id and such.
+		$this->prepGetList($pListHash);
 
+		$selectSql = ''; $joinSql = ''; $whereSql = '';
+		$bind = array();
+
+		$this->getServicesSql( 'content_list_sql_function', $selectSql, $joinSql, $whereSql, $bindVars, NULL, $pListHash );
+
+		$where = array();
+		$bind = array();
+		$args = array('moderator_user_id',
+					  'moderator_group_id',
+					  'package',
+					  'type',
+					  'status',
+					  'source_user_id',
+					  'content_id');
+
+		foreach ($args as $arg) {
+			if ( ! empty( $pListHash[$arg] ) ) {
+				$where[] = $arg." = ?";
+				$bind[] = $pListHash[$arg];
+			}
+		}
+
+		foreach ( $where as $arg ) {
+			if ( empty( $whereSql ) ) {
+				$whereSql = " ".$arg;
+			}
+			else {
+				$whereSql .= " AND ".$arg;
+			}
+		}
+
+		// Extra moderation_id for association
+		$query = "SELECT m.`moderation_id`, m.* ".$selectSql." from `".BIT_DB_PREFIX."moderation` m LEFT JOIN `".BIT_DB_PREFIX."liberty_content` lc ON (m.`content_id` = lc.`content_id`) ".$joinSQL." WHERE ".$whereSql." ORDER BY `package`, `type`, `status` ";
+
+		$results = $this->mDb->getAssoc($query, $bind);
+		$query = "SELECT count(*) from `".BIT_DB_PREFIX."moderation` ".$whereSql;
+		$pListHash['cant'] = $this->mDb->getOne($query, $bind);
+		$this->postGetList($pListHash);
+
+		return $results;
 	}
 }
 
