@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version $Header: /cvsroot/bitweaver/_bit_moderation/ModerationSystem.php,v 1.3 2008/01/23 16:50:12 nickpalmer Exp $
+ * @version $Header: /cvsroot/bitweaver/_bit_moderation/ModerationSystem.php,v 1.4 2008/01/31 16:11:25 nickpalmer Exp $
  *
  * +----------------------------------------------------------------------+
  * | Copyright ( c ) 2008, bitweaver.org
@@ -23,7 +23,7 @@
  * can use to register things for moderation and
  *
  * @author   nick <nick@sluggardy.net>
- * @version  $Revision: 1.3 $
+ * @version  $Revision: 1.4 $
  * @package  moderation
  */
 
@@ -124,7 +124,7 @@ class ModerationSystem extends LibertyContent {
 	 * on a packages queue changes this function will be called.
 	 *
 	 * The function should have the following API: boolean
-	 * handleModeration($pModeration) Where $pModeration is an array
+	 * handleModeration(&$pModeration) Where $pModeration is an array
 	 * with all of the information in the moderation table. The
 	 * function should return TRUE if the transition should be stored
 	 * and an error mesage to be displayed to the user otherwise. This
@@ -280,14 +280,32 @@ class ModerationSystem extends LibertyContent {
 					// to status is bundled with package updates
 					$this->mDb->StartTrans();
 
+					// TODO: Set the send_email flag based on user
+					// preferences here. Should be able
+					// to set preferences for both ones for which I
+					// am the moderator as well as ones for which
+					// I am the source_user_id
+					$moderationInfo['send_email'] = TRUE;
+
 					// Make the callback and check the reply from the package.
 					$result = $mPackages[$pkg]['callback']($moderationInfo);
+
+					// Do we need to send a message about this event?
+					if (!empty($moderationInfo['send_email']) {
+						// TODO: Make a call to switchboard here
+					}
+
 					if ( $result == TRUE ) {
 						// Do the SQL dance
 						$table = BIT_DB_PREFIX."moderation";
 						$locId = array('moderation_id' => $moderationInfo['moderation_id']);
 						unset($moderationInfo['moderation_id']);
-						$this->mDb->associateUpdate( $table, $moderationInfo, $locId);
+						if ( $moderationInfo['status'] == MODERATION_DELETE ) {
+							$this->mDb->associateDelete( $table, $locId );
+						}
+						else {
+							$this->mDb->associateUpdate( $table, $moderationInfo, $locId);
+						}
 						$this->mDb->CompleteTrans();
 					}
 					else {
@@ -315,10 +333,32 @@ class ModerationSystem extends LibertyContent {
 	 * Loads the data for a given moderation id.
 	 */
 	public getModeration( $pRequestId ) {
-		$query = "SELECT * from `".BIT_DB_PREFIX."moderation` WHERE `moderation_id` = ?";
+		$query = "SELECT m.*, lc.title from `".BIT_DB_PREFIX."moderation` m LEFT JOIN `".BIT_DB_PREFIX."liberty_content` lc ON (m.`content_id` = lc.`content_id`) WHERE `moderation_id` = ?";
 		$result = $this->mDb->getArray($query, array($pRequestId));
+		$result['transitions'] = getTransitions( $result );
 
 		return $result;
+	}
+
+	/**
+	 * Returns the next transitions this moderation can move to.
+	 *
+	 * Assumes that the passed in array contains the package
+	 * type and status.
+	 */
+	public getTransitions( $pModeration ) {
+		global $gBitSystem;
+
+		$package = $pModeration['package'];
+		$type = $pModeration['type'];
+		$status = $pModeration['status'];
+
+		if ( ! empty( $mPackages[$package][$type][$status] ) ) {
+			return $mPackages[$package][$type][$status];
+		}
+		else {
+			$gBitSystem->fatalError(tra("Moderation in state with no next transitions: ") . $pModeration['moderation_id']);
+		}
 	}
 
 	/**
@@ -335,13 +375,13 @@ class ModerationSystem extends LibertyContent {
 	 *
 	 */
 	public getList( $pListHash ) {
-		// Because this links to liberty_content via content_id we
-		// use services sql to be able to protect the content_id and such.
 		$this->prepGetList($pListHash);
 
 		$selectSql = ''; $joinSql = ''; $whereSql = '';
 		$bind = array();
 
+		// Because this links to liberty_content via content_id we
+		// use services sql to be able to protect the content_id and such.
 		$this->getServicesSql( 'content_list_sql_function', $selectSql, $joinSql, $whereSql, $bindVars, NULL, $pListHash );
 
 		$where = array();
@@ -356,22 +396,34 @@ class ModerationSystem extends LibertyContent {
 
 		foreach ($args as $arg) {
 			if ( ! empty( $pListHash[$arg] ) ) {
-				$where[] = $arg." = ?";
-				$bind[] = $pListHash[$arg];
+				if (is_array($arg)) {
+					$where[] = $arg." IN (". .")";
+					$bind = array_merge($bind, $arg);
+				} else {
+					$where[] = $arg." = ?";
+					$bind[] = $pListHash[$arg];
+				}
 			}
 		}
 
 		foreach ( $where as $arg ) {
 			if ( empty( $whereSql ) ) {
-				$whereSql = " ".$arg;
+				$whereSql = " WHERE ".$arg;
 			}
 			else {
-				$whereSql .= " AND ".$arg;
+				if ($pListHash['where_join'] &&
+					(strtoupper($pListHash['where_join')) == 'OR' ||
+					 strtoupper($pListHash['where_join')) == 'AND') ) {
+					$whereSql .= ' '.$pListHash('where_join').' '.$arg;
+				}
+				else {
+					$whereSql .= ' AND '.$arg;
+				}
 			}
 		}
 
 		// Extra moderation_id for association
-		$query = "SELECT m.`moderation_id`, m.* ".$selectSql." from `".BIT_DB_PREFIX."moderation` m LEFT JOIN `".BIT_DB_PREFIX."liberty_content` lc ON (m.`content_id` = lc.`content_id`) ".$joinSQL." WHERE ".$whereSql." ORDER BY `package`, `type`, `status` ";
+		$query = "SELECT m.`moderation_id`, m.* ".$selectSql." from `".BIT_DB_PREFIX."moderation` m LEFT JOIN `".BIT_DB_PREFIX."liberty_content` lc ON (m.`content_id` = lc.`content_id`) ".$joinSQL." ".$whereSql." ORDER BY `package`, `type`, `status` ";
 
 		$results = $this->mDb->getAssoc($query, $bind);
 		$query = "SELECT count(*) from `".BIT_DB_PREFIX."moderation` ".$whereSql;
@@ -385,6 +437,8 @@ class ModerationSystem extends LibertyContent {
 // Initialize the moderation system global if we haven't already
 if ( empty( $gModerationSystem ) ) {
 	$gModerationSystem = new ModerationSystem();
+	// Store it in the context.
+	$gBitSmarty->assign_by_ref('gModerationSystem', $gModerationSystem);
 }
 
 ?>
