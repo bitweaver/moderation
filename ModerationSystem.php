@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version $Header: /cvsroot/bitweaver/_bit_moderation/ModerationSystem.php,v 1.4 2008/01/31 16:11:25 nickpalmer Exp $
+ * @version $Header: /cvsroot/bitweaver/_bit_moderation/ModerationSystem.php,v 1.5 2008/02/06 09:47:39 nickpalmer Exp $
  *
  * +----------------------------------------------------------------------+
  * | Copyright ( c ) 2008, bitweaver.org
@@ -23,11 +23,11 @@
  * can use to register things for moderation and
  *
  * @author   nick <nick@sluggardy.net>
- * @version  $Revision: 1.4 $
+ * @version  $Revision: 1.5 $
  * @package  moderation
  */
 
-global $gModerationSystem
+global $gModerationSystem;
 
 /* The required moderation states. */
 define( 'MODERATION_PENDING', "Pending" );
@@ -55,9 +55,10 @@ class ModerationSystem extends LibertyContent {
 	 * Use the $gModerationSystem instance instead which is created
 	 * for you if you include this file.
 	 */
-	public ModerationSystem() {
+	function ModerationSystem() {
 		// Not much to do here
 		$mPackages = array();
+		LibertyContent::LibertyContent();
 	}
 
     /**
@@ -65,7 +66,7 @@ class ModerationSystem extends LibertyContent {
 	 *
 	 * Returns an ID for the moderation.
 	 */
-    public requestModeration( $pPackage, $pType,
+    function requestModeration( $pPackage, $pType,
 							  $pModerationUser = NULL,
 							  $pModerationGroup = NULL,
 							  $pContentId = NULL,
@@ -181,7 +182,7 @@ class ModerationSystem extends LibertyContent {
 	 * transition table will be made. See validateTransitions for
 	 * more information on this check.
 	 */
-    public registerModerationListener( $pPackage, $pFunction, $pTransitions ) {
+    function registerModerationListener( $pPackage, $pFunction, $pTransitions ) {
 		global $gBitSystem;
 		// Ensure that the transition table has the right structure
 		// if we are in development mode. See above to turn this on.
@@ -201,8 +202,10 @@ class ModerationSystem extends LibertyContent {
 	 * has the required transisitons to lead to a delete state or that
 	 * there are no dead end states in the map but it is a good
 	 * check if you are developing moderation support for a package.
+	 *
+	 * @access private
 	 */
-	private validateTransitions( $pTransitions ) {
+	function validateTransitions( $pTransitions ) {
 		// Make sure we have an array of types
 		if ( is_array( $pTransitions ) &&
 			 count( array_keys( $pTransitions ) ) > 0 ){
@@ -253,7 +256,7 @@ class ModerationSystem extends LibertyContent {
 	 * Sets the reply for a given request and triggers
 	 * the callback to the package.
 	 */
-	public setModerationReply( $pRequestId, $pStatus, $pReply = NULL )
+	function setModerationReply( $pRequestId, $pStatus, $pReply = NULL )
 	{
 		global $gBitSystem, $gBitUser;
 
@@ -291,7 +294,7 @@ class ModerationSystem extends LibertyContent {
 					$result = $mPackages[$pkg]['callback']($moderationInfo);
 
 					// Do we need to send a message about this event?
-					if (!empty($moderationInfo['send_email']) {
+					if (!empty($moderationInfo['send_email'])) {
 						// TODO: Make a call to switchboard here
 					}
 
@@ -332,7 +335,7 @@ class ModerationSystem extends LibertyContent {
 	/**
 	 * Loads the data for a given moderation id.
 	 */
-	public getModeration( $pRequestId ) {
+	function getModeration( $pRequestId ) {
 		$query = "SELECT m.*, lc.title from `".BIT_DB_PREFIX."moderation` m LEFT JOIN `".BIT_DB_PREFIX."liberty_content` lc ON (m.`content_id` = lc.`content_id`) WHERE `moderation_id` = ?";
 		$result = $this->mDb->getArray($query, array($pRequestId));
 		$result['transitions'] = getTransitions( $result );
@@ -346,7 +349,7 @@ class ModerationSystem extends LibertyContent {
 	 * Assumes that the passed in array contains the package
 	 * type and status.
 	 */
-	public getTransitions( $pModeration ) {
+	function getTransitions( $pModeration ) {
 		global $gBitSystem;
 
 		$package = $pModeration['package'];
@@ -374,7 +377,7 @@ class ModerationSystem extends LibertyContent {
 	 * content_id - The content_id to retrict to.
 	 *
 	 */
-	public getList( $pListHash ) {
+	function getList( $pListHash ) {
 		$this->prepGetList($pListHash);
 
 		$selectSql = ''; $joinSql = ''; $whereSql = '';
@@ -396,9 +399,10 @@ class ModerationSystem extends LibertyContent {
 
 		foreach ($args as $arg) {
 			if ( ! empty( $pListHash[$arg] ) ) {
-				if (is_array($arg)) {
-					$where[] = $arg." IN (". .")";
-					$bind = array_merge($bind, $arg);
+				if (is_array($pListHash[$arg])) {
+					/* TODO: Do the explode thing here */
+					$where[] = $arg." IN (". '?' . ")";
+					$bind = array_merge($bind, $pListHash[$arg]);
 				} else {
 					$where[] = $arg." = ?";
 					$bind[] = $pListHash[$arg];
@@ -411,10 +415,10 @@ class ModerationSystem extends LibertyContent {
 				$whereSql = " WHERE ".$arg;
 			}
 			else {
-				if ($pListHash['where_join'] &&
-					(strtoupper($pListHash['where_join')) == 'OR' ||
-					 strtoupper($pListHash['where_join')) == 'AND') ) {
-					$whereSql .= ' '.$pListHash('where_join').' '.$arg;
+				if (isset($pListHash['where_join']) &&
+					(strtoupper($pListHash['where_join']) == 'OR' ||
+					 strtoupper($pListHash['where_join']) == 'AND') ) {
+					$whereSql .= ' '.$pListHash['where_join'].' '.$arg;
 				}
 				else {
 					$whereSql .= ' AND '.$arg;
@@ -423,7 +427,7 @@ class ModerationSystem extends LibertyContent {
 		}
 
 		// Extra moderation_id for association
-		$query = "SELECT m.`moderation_id`, m.* ".$selectSql." from `".BIT_DB_PREFIX."moderation` m LEFT JOIN `".BIT_DB_PREFIX."liberty_content` lc ON (m.`content_id` = lc.`content_id`) ".$joinSQL." ".$whereSql." ORDER BY `package`, `type`, `status` ";
+		$query = "SELECT m.`moderation_id`, m.* ".$selectSql." from `".BIT_DB_PREFIX."moderation` m LEFT JOIN `".BIT_DB_PREFIX."liberty_content` lc ON (m.`content_id` = lc.`content_id`) ".$joinSql." ".$whereSql." ORDER BY `package`, `type`, `status` ";
 
 		$results = $this->mDb->getAssoc($query, $bind);
 		$query = "SELECT count(*) from `".BIT_DB_PREFIX."moderation` ".$whereSql;

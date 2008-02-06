@@ -4,7 +4,7 @@ require_once('../bit_setup_inc.php');
 require_once('ModerationSystem.php');
 
 // Are we trying to look at a single moderation?
-if (is_set($_REQUEST['moderation_id'])) {
+if (isset($_REQUEST['moderation_id'])) {
 	$moderation = $gModerationSystem->getModeration($_REQUEST['moderation_id']);
 
 	// Do we have a valid moderation
@@ -51,12 +51,12 @@ if (is_set($_REQUEST['moderation_id'])) {
 }
 
 $myModerationHash = array('moderator_user_id' => $gBitUser->mUserId,
-						  'moderator_group_id' => $gBitUser->getGroups(),
+						  'moderator_group_id' => array_keys($gBitUser->getGroups()),
 						  'source_user_id' => $gBitUser->mUserId,
 						  'where_join' => 'OR');
 $myModerations = $gModerationSystem->getList($myModerationHash);
 $gBitSmarty->assign('myModerations', $myModerations);
 
-$gBitSmarty->display('bitpackage:moderation/list_moderations.tpl', 'Moderations');
+$gBitSystem->display('bitpackage:moderation/list_moderations.tpl', 'Moderations');
 
 ?>
