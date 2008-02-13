@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version $Header: /cvsroot/bitweaver/_bit_moderation/ModerationSystem.php,v 1.6 2008/02/13 15:17:22 nickpalmer Exp $
+ * @version $Header: /cvsroot/bitweaver/_bit_moderation/ModerationSystem.php,v 1.7 2008/02/13 15:37:08 nickpalmer Exp $
  *
  * +----------------------------------------------------------------------+
  * | Copyright ( c ) 2008, bitweaver.org
@@ -23,7 +23,7 @@
  * can use to register things for moderation and
  *
  * @author   nick <nick@sluggardy.net>
- * @version  $Revision: 1.6 $
+ * @version  $Revision: 1.7 $
  * @package  moderation
  */
 
@@ -401,7 +401,7 @@ class ModerationSystem extends LibertyContent {
 			if ( ! empty( $pListHash[$arg] ) ) {
 				if (is_array($pListHash[$arg])) {
 					/* TODO: Do the explode thing here */
-					$where[] = $arg." IN (". '?' . ")";
+					$where[] = $arg." IN (". implode( ',',array_fill( 0,count( $pListHash[$arg] ),'?' ) ). ")";
 					$bind = array_merge($bind, $pListHash[$arg]);
 				} else {
 					$where[] = $arg." = ?";
