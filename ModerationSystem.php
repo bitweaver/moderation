@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version $Header: /cvsroot/bitweaver/_bit_moderation/ModerationSystem.php,v 1.5 2008/02/06 09:47:39 nickpalmer Exp $
+ * @version $Header: /cvsroot/bitweaver/_bit_moderation/ModerationSystem.php,v 1.6 2008/02/13 15:17:22 nickpalmer Exp $
  *
  * +----------------------------------------------------------------------+
  * | Copyright ( c ) 2008, bitweaver.org
@@ -23,7 +23,7 @@
  * can use to register things for moderation and
  *
  * @author   nick <nick@sluggardy.net>
- * @version  $Revision: 1.5 $
+ * @version  $Revision: 1.6 $
  * @package  moderation
  */
 
@@ -71,7 +71,7 @@ class ModerationSystem extends LibertyContent {
 							  $pModerationGroup = NULL,
 							  $pContentId = NULL,
 							  $pRequest = NULL,
-							  $pState = PENDING_MODERATION ) {
+							  $pState = MODERATION_PENDING ) {
 		global $gBitSystem, $gBitUser;
 		$moderationId = -1;
 
@@ -191,7 +191,7 @@ class ModerationSystem extends LibertyContent {
 			// Save the registsration information for later.
 			$mPackages[$pPackage]['name'] = $pPackage;
 			$mPackages[$pPackage]['callback'] = $pFunction;
-			$mPackages[$pPacakge]['types'] = array_keys($pStatuses);
+			$mPackages[$pPackage]['types'] = array_keys($pTransitions);
 			$mPackages[$pPackage]['transitions'] = $pTransitions;
 		}
 	}
