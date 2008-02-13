@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version $Header: /cvsroot/bitweaver/_bit_moderation/ModerationSystem.php,v 1.7 2008/02/13 15:37:08 nickpalmer Exp $
+ * @version $Header: /cvsroot/bitweaver/_bit_moderation/ModerationSystem.php,v 1.8 2008/02/13 20:05:23 nickpalmer Exp $
  *
  * +----------------------------------------------------------------------+
  * | Copyright ( c ) 2008, bitweaver.org
@@ -23,7 +23,7 @@
  * can use to register things for moderation and
  *
  * @author   nick <nick@sluggardy.net>
- * @version  $Revision: 1.7 $
+ * @version  $Revision: 1.8 $
  * @package  moderation
  */
 
@@ -34,6 +34,10 @@ define( 'MODERATION_PENDING', "Pending" );
 define( 'MODERATION_APPROVED', "Approved" );
 define( 'MODERATION_REJECTED', "Rejected" );
 define( 'MODERATION_DELETE', "Delete" );
+
+/* The possible values for the responsible flag to indicate who must act */
+define( 'MODERATION_NEEDED', 0);
+define( 'MODERATION_GIVEN', 1);
 
 /*
    A handy flag to turn on some validation of your transition table
@@ -74,30 +78,32 @@ class ModerationSystem extends LibertyContent {
 							  $pState = MODERATION_PENDING ) {
 		global $gBitSystem, $gBitUser;
 		$moderationId = -1;
-
 		// Validate package
-		if ( ! empty( $mPackages[$pPackage] ) ) {
+		if ( ! empty( $this->mPackages[$pPackage] ) ) {
 			// Validate type
-			if ( ! empty( $mPackages[$pPackage]['types'][$pType] ) ) {
+			if ( in_array( $pType, $this->mPackages[$pPackage]['types'] ) ) {
 				// Validate that we have a user or group
 				if ( ! ( empty( $pModerationUser ) and
 						 empty( $pModerationGroup ) ) ) {
+					// @TODO: Validate the $pState
 
-					// Do the storage intot he right table
+					// Do the storage into the right table
 					$table = BIT_DB_PREFIX."moderation";
 
 					$store = array();
-					$store['moderation_user_id'] = $pModerationUser;
-					$store['moderation_group_id'] = $pModerationGroup;
+					$store['moderator_user_id'] = $pModerationUser;
+					$store['moderator_group_id'] = $pModerationGroup;
 					$store['source_user_id'] = $gBitUser->mUserId;
 					$store['content_id'] = $pContentId;
 					$store['package'] = $pPackage;
 					$store['type'] = $pType;
 					$store['request'] = $pRequest;
+					$store['status'] = $pState;
 
 					// Keeping the transaction as short as possible
 					$this->mDb->StartTrans();
-					$store['moderation_id'] = $this->mDb->GenID( 'moderation_post_id_seq' );
+
+					$store['moderation_id'] = $this->mDb->GenID( 'moderation_id_seq' );
 					$this->mDb->associateInsert($table, $store);
 
 					$this->mDb->CompleteTrans();
@@ -182,17 +188,19 @@ class ModerationSystem extends LibertyContent {
 	 * transition table will be made. See validateTransitions for
 	 * more information on this check.
 	 */
-    function registerModerationListener( $pPackage, $pFunction, $pTransitions ) {
+    function registerModerationListener( $pPackage, $pFunction, $pTransitions, $pModerationTemplate = 'bitpackage:moderation/moderate.tpl', $pRequestTemplate = 'bitpackage:moderation/request.tpl' ) {
 		global $gBitSystem;
 		// Ensure that the transition table has the right structure
 		// if we are in development mode. See above to turn this on.
 		if ( ! MODERATION_DEVELOPMENT ||
 			 $this->validateTransitions( $pTransitions) ) {
 			// Save the registsration information for later.
-			$mPackages[$pPackage]['name'] = $pPackage;
-			$mPackages[$pPackage]['callback'] = $pFunction;
-			$mPackages[$pPackage]['types'] = array_keys($pTransitions);
-			$mPackages[$pPackage]['transitions'] = $pTransitions;
+			$this->mPackages[$pPackage]['name'] = $pPackage;
+			$this->mPackages[$pPackage]['callback'] = $pFunction;
+			$this->mPackages[$pPackage]['types'] = array_keys($pTransitions);
+			$this->mPackages[$pPackage]['transitions'] = $pTransitions;
+			$this->mPackages[$pPackage]['moderate_tpl'] = $pModerationTemplate;
+			$this->mPackages[$pPackage]['request_tpl'] = $pRequestTemplate;
 		}
 	}
 
@@ -270,9 +278,12 @@ class ModerationSystem extends LibertyContent {
 				// Some shorthands for current state
 				$pkg = $moderationInfo['package'];
 				$type = $moderationInfo['type'];
-				$state = $moderationInfo['state'];
+				$state = $moderationInfo['status'];
+
 				// Validate that we are making a valid transition
-				if (! empty( $mPackages[$pkg]['transitions'][$type][$state][$pStatus] ) ) {
+				if ( ( is_array($moderationInfo['transitions'])&&
+					   in_array($pStatus, $moderationInfo['transitions']) )
+					 || $pStatus == $moderationInfo['transitions']) {
 					$moderationInfo['last_status'] = $state;
 					$moderationInfo['status'] = $pStatus;
 					if ( ! empty($pReply) ) {
@@ -290,8 +301,16 @@ class ModerationSystem extends LibertyContent {
 					// I am the source_user_id
 					$moderationInfo['send_email'] = TRUE;
 
+					// Set who is responsible next before the callback.
+					if ($moderationInfo['responsible'] == MODERATION_NEEDED) {
+						$moderationInfo['next_responsible'] = MODERATION_GIVEN;
+					}
+					else {
+						$moderationInfo['next_responsible'] = MODERATION_NEEDED;
+					}
+
 					// Make the callback and check the reply from the package.
-					$result = $mPackages[$pkg]['callback']($moderationInfo);
+					$result = $this->mPackages[$pkg]['callback']($moderationInfo);
 
 					// Do we need to send a message about this event?
 					if (!empty($moderationInfo['send_email'])) {
@@ -304,10 +323,14 @@ class ModerationSystem extends LibertyContent {
 						$locId = array('moderation_id' => $moderationInfo['moderation_id']);
 						unset($moderationInfo['moderation_id']);
 						if ( $moderationInfo['status'] == MODERATION_DELETE ) {
-							$this->mDb->associateDelete( $table, $locId );
+							$this->mDb->query("DELETE FROM `".$table."` WHERE moderation_id = ? ", $locId);
 						}
 						else {
-							$this->mDb->associateUpdate( $table, $moderationInfo, $locId);
+							$update['reply'] = $moderationInfo['reply'];
+							$update['status'] = $moderationInfo['status'];
+							$update['last_status'] = $moderationInfo['last_status'];
+							$update['responsible'] = $moderationInfo['next_responsible'];
+							$this->mDb->associateUpdate( $table, $update, $locId);
 						}
 						$this->mDb->CompleteTrans();
 					}
@@ -338,7 +361,10 @@ class ModerationSystem extends LibertyContent {
 	function getModeration( $pRequestId ) {
 		$query = "SELECT m.*, lc.title from `".BIT_DB_PREFIX."moderation` m LEFT JOIN `".BIT_DB_PREFIX."liberty_content` lc ON (m.`content_id` = lc.`content_id`) WHERE `moderation_id` = ?";
 		$result = $this->mDb->getArray($query, array($pRequestId));
-		$result['transitions'] = getTransitions( $result );
+		if (!empty($result)) {
+			$result = $result[0];
+			$result['transitions'] = $this->getTransitions( $result );
+		}
 
 		return $result;
 	}
@@ -356,8 +382,8 @@ class ModerationSystem extends LibertyContent {
 		$type = $pModeration['type'];
 		$status = $pModeration['status'];
 
-		if ( ! empty( $mPackages[$package][$type][$status] ) ) {
-			return $mPackages[$package][$type][$status];
+		if ( ! empty( $this->mPackages[$package]['transitions'][$type][$status] ) ) {
+			return $this->mPackages[$package]['transitions'][$type][$status];
 		}
 		else {
 			$gBitSystem->fatalError(tra("Moderation in state with no next transitions: ") . $pModeration['moderation_id']);
@@ -427,9 +453,13 @@ class ModerationSystem extends LibertyContent {
 		}
 
 		// Extra moderation_id for association
-		$query = "SELECT m.`moderation_id`, m.* ".$selectSql." from `".BIT_DB_PREFIX."moderation` m LEFT JOIN `".BIT_DB_PREFIX."liberty_content` lc ON (m.`content_id` = lc.`content_id`) ".$joinSql." ".$whereSql." ORDER BY `package`, `type`, `status` ";
+		$query = "SELECT m.`moderation_id` as `hash_key`, m.*, lc.title ".$selectSql." from `".BIT_DB_PREFIX."moderation` m LEFT JOIN `".BIT_DB_PREFIX."liberty_content` lc ON (m.`content_id` = lc.`content_id`) ".$joinSql." ".$whereSql." ORDER BY `package`, `type`, `status` ";
 
 		$results = $this->mDb->getAssoc($query, $bind);
+		foreach ($results as $id => $data) {
+			$results[$id]['transitions'] = $this->getTransitions($data);
+		}
+
 		$query = "SELECT count(*) from `".BIT_DB_PREFIX."moderation` ".$whereSql;
 		$pListHash['cant'] = $this->mDb->getOne($query, $bind);
 		$this->postGetList($pListHash);

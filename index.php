@@ -3,10 +3,20 @@
 require_once('../bit_setup_inc.php');
 require_once('ModerationSystem.php');
 
+
 // Are we trying to look at a single moderation?
 if (isset($_REQUEST['moderation_id'])) {
-	$moderation = $gModerationSystem->getModeration($_REQUEST['moderation_id']);
+	if( !empty($_REQUEST['transition']) ) {
+		$gModerationSystem->setModerationReply($_REQUEST['moderation_id'],
+											   $_REQUEST['transition'],
+											   (empty($_REQUEST['reply']) ?
+												NULL : $_REQUEST['reply']) );
+		if ($_REQUEST['transition'] == MODERATION_DELETE) {
+			header('Location: '. MODERATION_PKG_URL);
+		}
+	}
 
+	$moderation = $gModerationSystem->getModeration($_REQUEST['moderation_id']);
 	// Do we have a valid moderation
 	if ( ! empty( $moderation ) ) {
 		// Verify that the user can see this moderation
@@ -43,6 +53,7 @@ if (isset($_REQUEST['moderation_id'])) {
 			$gBitSystem->setHttpStatus(403);
 			$gBitSystem->fatalError(tra("You don't have permission to see this moderation."));
 		}
+
 	}
 	else {
 		$gBitSystem->setHttpStatus(404);

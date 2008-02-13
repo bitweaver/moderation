@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version $Header: /cvsroot/bitweaver/_bit_moderation/admin/schema_inc.php,v 1.3 2008/02/06 09:47:39 nickpalmer Exp $
+ * @version $Header: /cvsroot/bitweaver/_bit_moderation/admin/schema_inc.php,v 1.4 2008/02/13 20:05:24 nickpalmer Exp $
  *
  * +----------------------------------------------------------------------+
  * | Copyright ( c ) 2008, bitweaver.org
@@ -22,7 +22,7 @@
  * This file contains the schema for the moderation package.
  *
  * @author   nick <nick@sluggardy.net>
- * @version  $Revision: 1.3 $
+ * @version  $Revision: 1.4 $
  * @package  moderation
  */
 
@@ -33,6 +33,7 @@ $tables = array(
     	moderator_group_id I4,
     	source_user_id I4 NOTNULL,
     	content_id I4,
+		responsible I1 NOTNULL DEFAULT 0,
     	package C(128) NOTNULL,
     	type C(64) NOTNULL,
     	status C(64) NOTNULL,
