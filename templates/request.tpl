@@ -5,7 +5,7 @@
 	{/if}
 	Status: {$moderation.status}<br/>
 	{if !empty($moderation.request)}
-		{tr}Request{/tr}: {$moderation.request}<br/>
+		{tr}Request{/tr}: {$moderation.request|escape:html}<br/>
 	{/if}
 </div>
 {if $moderation.responsible == $smarty.const.MODERATION_GIVEN}
@@ -13,9 +13,9 @@
 		<input type=hidden name=moderation_id value="{$moderation.moderation_id}" />
 		<div class="row reply">
 			{if empty($moderation.reply)}
-				<textarea name="reply" id="reply-{$moderation.moderation_id}">{$moderation.reply}</textarea>
+				<textarea name="reply" id="reply-{$moderation.moderation_id}">{$moderation.reply|escape:html}</textarea>
 			{else}
-				{$moderation.reply}
+				{$moderation.reply|escape:html}
 			{/if}
 		</div>
 		<div class="row submit">

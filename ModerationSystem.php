@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version $Header: /cvsroot/bitweaver/_bit_moderation/ModerationSystem.php,v 1.8 2008/02/13 20:05:23 nickpalmer Exp $
+ * @version $Header: /cvsroot/bitweaver/_bit_moderation/ModerationSystem.php,v 1.9 2008/03/08 22:05:51 nickpalmer Exp $
  *
  * +----------------------------------------------------------------------+
  * | Copyright ( c ) 2008, bitweaver.org
@@ -23,7 +23,7 @@
  * can use to register things for moderation and
  *
  * @author   nick <nick@sluggardy.net>
- * @version  $Revision: 1.8 $
+ * @version  $Revision: 1.9 $
  * @package  moderation
  */
 
@@ -437,19 +437,22 @@ class ModerationSystem extends LibertyContent {
 		}
 
 		foreach ( $where as $arg ) {
-			if ( empty( $whereSql ) ) {
-				$whereSql = " WHERE ".$arg;
+			if (isset($pListHash['where_join']) &&
+				(strtoupper($pListHash['where_join']) == 'OR' ||
+				 strtoupper($pListHash['where_join']) == 'AND') ) {
+				$whereSql .= ' '.$pListHash['where_join'].' '.$arg;
 			}
 			else {
-				if (isset($pListHash['where_join']) &&
-					(strtoupper($pListHash['where_join']) == 'OR' ||
-					 strtoupper($pListHash['where_join']) == 'AND') ) {
-					$whereSql .= ' '.$pListHash['where_join'].' '.$arg;
-				}
-				else {
-					$whereSql .= ' AND '.$arg;
-				}
+				$whereSql .= ' AND '.$arg;
 			}
+		}
+
+		$whereSql = trim($whereSql);
+		if (!empty($whereSql)) {
+			if (strtoupper(substr($whereSql, 0, 3)) == 'AND') {
+				$whereSql = substr($whereSql, 3);
+			}
+			$whereSql = " WHERE " . $whereSql;
 		}
 
 		// Extra moderation_id for association
@@ -460,7 +463,7 @@ class ModerationSystem extends LibertyContent {
 			$results[$id]['transitions'] = $this->getTransitions($data);
 		}
 
-		$query = "SELECT count(*) from `".BIT_DB_PREFIX."moderation` ".$whereSql;
+		$query = "SELECT count(*) from `".BIT_DB_PREFIX."moderation` m LEFT JOIN `".BIT_DB_PREFIX."liberty_content` lc ON (m.`content_id` = lc.`content_id`)".$joinSql." ".$whereSql;
 		$pListHash['cant'] = $this->mDb->getOne($query, $bind);
 		$this->postGetList($pListHash);
 

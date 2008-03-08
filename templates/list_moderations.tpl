@@ -11,7 +11,6 @@
 	    	array_key_exists($moderation.moderator_group_id, $gBitUser->mGroups))}
 		{assign var=had_moderation value=true}
 		{if $last_package != $moderation.package}
-			{* Do we need to close the last list? *}
 			{if $last_package}
 				</ul></li></ul></div>
 			{/if}
@@ -46,7 +45,6 @@
 	{if $moderation.source_user_id == $gBitUser->mUserId}
 		{assign var=had_moderation value=true}
 		{if $last_package != $moderation.package}
-			{* Do we need to close the last list? *}
 			{if $last_package}
 				</ul></li></ul></div>
 			{/if}
@@ -67,7 +65,8 @@
 {/foreach}
 {if !$had_moderation}
 	<li>{tr}You have no requests awaiting moderation.{/tr}</li>
+{else}
+	</ul></li></ul></div>
 {/if}
 </ul>
-
 {/strip}
