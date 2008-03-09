@@ -3,7 +3,6 @@
 require_once('../bit_setup_inc.php');
 require_once('ModerationSystem.php');
 
-
 // Are we trying to look at a single moderation?
 if (isset($_REQUEST['moderation_id'])) {
 	if( !empty($_REQUEST['transition']) ) {
@@ -12,7 +11,7 @@ if (isset($_REQUEST['moderation_id'])) {
 											   (empty($_REQUEST['reply']) ?
 												NULL : $_REQUEST['reply']) );
 		if ($_REQUEST['transition'] == MODERATION_DELETE) {
-			header('Location: '. MODERATION_PKG_URL);
+			bit_redirect(MODERATION_PKG_URL.'index.php');
 		}
 	}
 
