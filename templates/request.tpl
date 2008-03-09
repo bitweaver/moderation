@@ -1,7 +1,7 @@
 {strip}
 <div class="row data">
 	{if !empty($moderation.content_id)}
-		{tr}Content{/tr}: <a href="{$smarty.const.BIT_ROOT_URL}index.php?content_id={$moderation.content_id}">{$moderation.title}</a><br/>
+		{tr}Content{/tr}: <a href="{$smarty.const.BIT_ROOT_URL}index.php?content_id={$moderation.content_id}">{$moderation.title|escape:html}</a><br/>
 	{/if}
 	Status: {$moderation.status}<br/>
 	{if !empty($moderation.request)}
@@ -12,10 +12,9 @@
 	{form}
 		<input type=hidden name=moderation_id value="{$moderation.moderation_id}" />
 		<div class="row reply">
-			{if empty($moderation.reply)}
-				<textarea name="reply" id="reply-{$moderation.moderation_id}">{$moderation.reply|escape:html}</textarea>
-			{else}
-				{$moderation.reply|escape:html}
+			{$moderation.reply|escape:html}
+			{if $moderation.responsible == 1}
+				<textarea name="reply" id="reply-{$moderation.moderation_id}"></textarea>
 			{/if}
 		</div>
 		<div class="row submit">

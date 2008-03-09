@@ -10,9 +10,7 @@ if (isset($_REQUEST['moderation_id'])) {
 											   $_REQUEST['transition'],
 											   (empty($_REQUEST['reply']) ?
 												NULL : $_REQUEST['reply']) );
-		if ($_REQUEST['transition'] == MODERATION_DELETE) {
-			bit_redirect(MODERATION_PKG_URL.'index.php');
-		}
+		bit_redirect(MODERATION_PKG_URL.'index.php');
 	}
 
 	$moderation = $gModerationSystem->getModeration($_REQUEST['moderation_id']);
