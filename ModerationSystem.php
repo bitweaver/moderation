@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version $Header: /cvsroot/bitweaver/_bit_moderation/ModerationSystem.php,v 1.9 2008/03/08 22:05:51 nickpalmer Exp $
+ * @version $Header: /cvsroot/bitweaver/_bit_moderation/ModerationSystem.php,v 1.10 2008/03/09 15:09:08 nickpalmer Exp $
  *
  * +----------------------------------------------------------------------+
  * | Copyright ( c ) 2008, bitweaver.org
@@ -23,7 +23,7 @@
  * can use to register things for moderation and
  *
  * @author   nick <nick@sluggardy.net>
- * @version  $Revision: 1.9 $
+ * @version  $Revision: 1.10 $
  * @package  moderation
  */
 
@@ -272,7 +272,8 @@ class ModerationSystem extends LibertyContent {
 		$moderationInfo = $this->getModeration( $pRequestId );
 		if ( ! empty( $moderationInfo ) ) {
 			// Validate that the current user is a moderator
-			if ( $gBitUser->mUserId == $moderationInfo['moderator_user_id'] or
+			if ( $gBitUser->isAdmin() ||
+				 $gBitUser->mUserId == $moderationInfo['moderator_user_id'] or
 				 $gBitUser->isInGroup( $moderationInfo['moderator_group_id'] ) ) {
 
 				// Some shorthands for current state
@@ -407,14 +408,27 @@ class ModerationSystem extends LibertyContent {
 		$this->prepGetList($pListHash);
 
 		$selectSql = ''; $joinSql = ''; $whereSql = '';
-		$bind = array();
+		$bindVars = array();
 
 		// Because this links to liberty_content via content_id we
 		// use services sql to be able to protect the content_id and such.
+		// We add a flag to the $pListHash to tell packages this is a
+		// moderations list so they can add joins if using custom templates
+		$pListHash['moderations_list'] = true;
 		$this->getServicesSql( 'content_list_sql_function', $selectSql, $joinSql, $whereSql, $bindVars, NULL, $pListHash );
 
-		$where = array();
-		$bind = array();
+		// What do we stick all our things together with?
+		if (isset($pListHash['where_join']) &&
+			(strtoupper($pListHash['where_join']) == 'OR' ||
+			 strtoupper($pListHash['where_join']) == 'AND') ) {
+			$joiner = ' '.$pListHash['where_join'].' ';
+		}
+		else {
+			$joiner = ' AND ';
+		}
+
+		// Now figure out our part of WHERE
+		$first = true;
 		$args = array('moderator_user_id',
 					  'moderator_group_id',
 					  'package',
@@ -423,30 +437,36 @@ class ModerationSystem extends LibertyContent {
 					  'source_user_id',
 					  'content_id');
 
+		$emptyWhere = empty($whereSql);
 		foreach ($args as $arg) {
 			if ( ! empty( $pListHash[$arg] ) ) {
-				if (is_array($pListHash[$arg])) {
-					/* TODO: Do the explode thing here */
-					$where[] = $arg." IN (". implode( ',',array_fill( 0,count( $pListHash[$arg] ),'?' ) ). ")";
-					$bind = array_merge($bind, $pListHash[$arg]);
-				} else {
-					$where[] = $arg." = ?";
-					$bind[] = $pListHash[$arg];
+				// Do we need to open the ORed clause?
+				if ($first && $joiner == ' OR ' && !$emptyWhere) {
+					$whereSql .= ' AND ( ';
 				}
+				if (is_array($pListHash[$arg])) {
+					if (!$first) {
+						$whereSql .= $joiner;
+					}
+					$whereSql .= '`'.$arg."` IN (". implode( ',',array_fill( 0,count( $pListHash[$arg] ),'?' ) ). ")";
+					$bindVars = array_merge($bindVars, $pListHash[$arg]);
+				} else {
+					if (!$first) {
+						$whereSql .= $joiner;
+					}
+					$whereSql .= '`'.$arg."` = ?";
+					$bindVars[] = $pListHash[$arg];
+				}
+				$first = false;
 			}
 		}
 
-		foreach ( $where as $arg ) {
-			if (isset($pListHash['where_join']) &&
-				(strtoupper($pListHash['where_join']) == 'OR' ||
-				 strtoupper($pListHash['where_join']) == 'AND') ) {
-				$whereSql .= ' '.$pListHash['where_join'].' '.$arg;
-			}
-			else {
-				$whereSql .= ' AND '.$arg;
-			}
+		// Do we need to close the ORed clause
+		if (!$first && $joiner == ' OR ' && !$emptyWhere) {
+			$whereSql .= ' ) ';
 		}
 
+		// Fix up the start of the SQL in case it starts with AND
 		$whereSql = trim($whereSql);
 		if (!empty($whereSql)) {
 			if (strtoupper(substr($whereSql, 0, 3)) == 'AND') {
@@ -457,14 +477,13 @@ class ModerationSystem extends LibertyContent {
 
 		// Extra moderation_id for association
 		$query = "SELECT m.`moderation_id` as `hash_key`, m.*, lc.title ".$selectSql." from `".BIT_DB_PREFIX."moderation` m LEFT JOIN `".BIT_DB_PREFIX."liberty_content` lc ON (m.`content_id` = lc.`content_id`) ".$joinSql." ".$whereSql." ORDER BY `package`, `type`, `status` ";
-
-		$results = $this->mDb->getAssoc($query, $bind);
+		$results = $this->mDb->getAssoc($query, $bindVars);
 		foreach ($results as $id => $data) {
 			$results[$id]['transitions'] = $this->getTransitions($data);
 		}
 
 		$query = "SELECT count(*) from `".BIT_DB_PREFIX."moderation` m LEFT JOIN `".BIT_DB_PREFIX."liberty_content` lc ON (m.`content_id` = lc.`content_id`)".$joinSql." ".$whereSql;
-		$pListHash['cant'] = $this->mDb->getOne($query, $bind);
+		$pListHash['cant'] = $this->mDb->getOne($query, $bindVars);
 		$this->postGetList($pListHash);
 
 		return $results;

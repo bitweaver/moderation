@@ -61,10 +61,15 @@ if (isset($_REQUEST['moderation_id'])) {
 	}
 }
 
-$myModerationHash = array('moderator_user_id' => $gBitUser->mUserId,
-						  'moderator_group_id' => array_keys($gBitUser->getGroups()),
-						  'source_user_id' => $gBitUser->mUserId,
-						  'where_join' => 'OR');
+if (!$gBitUser->isAdmin()) {
+	$myModerationHash = array('moderator_user_id' => $gBitUser->mUserId,
+							  'moderator_group_id' => array_keys($gBitUser->getGroups()),
+							  'source_user_id' => $gBitUser->mUserId,
+							  'where_join' => 'OR');
+}
+else {
+	$myModerationHash = array();
+}
 $myModerations = $gModerationSystem->getList($myModerationHash);
 $gBitSmarty->assign('myModerations', $myModerations);
 
