@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version $Header: /cvsroot/bitweaver/_bit_moderation/ModerationSystem.php,v 1.10 2008/03/09 15:09:08 nickpalmer Exp $
+ * @version $Header: /cvsroot/bitweaver/_bit_moderation/ModerationSystem.php,v 1.11 2008/03/21 04:46:05 nickpalmer Exp $
  *
  * +----------------------------------------------------------------------+
  * | Copyright ( c ) 2008, bitweaver.org
@@ -23,7 +23,7 @@
  * can use to register things for moderation and
  *
  * @author   nick <nick@sluggardy.net>
- * @version  $Revision: 1.10 $
+ * @version  $Revision: 1.11 $
  * @package  moderation
  */
 
@@ -495,6 +495,12 @@ if ( empty( $gModerationSystem ) ) {
 	$gModerationSystem = new ModerationSystem();
 	// Store it in the context.
 	$gBitSmarty->assign_by_ref('gModerationSystem', $gModerationSystem);
+}
+
+function moderation_content_expunge( &$pObject, &$pParamHash ) {
+	global $gBitSystem;
+	$query = "DELETE FROM `".BIT_DB_PREFIX."moderation` WHERE `content_id` = ?";
+	$gBitSystem->mDb->query($query, array($pObject->mContentId));
 }
 
 ?>
