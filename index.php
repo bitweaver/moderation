@@ -12,7 +12,7 @@ if (isset($_REQUEST['moderation_id'])) {
 												NULL : $_REQUEST['reply']) );
 		bit_redirect(MODERATION_PKG_URL.'index.php');
 	}
-
+	/* We only show the list now...
 	$moderation = $gModerationSystem->getModeration($_REQUEST['moderation_id']);
 	// Do we have a valid moderation
 	if ( ! empty( $moderation ) ) {
@@ -29,7 +29,7 @@ if (isset($_REQUEST['moderation_id'])) {
 
 			// Check which way it is going
 			if ( $moderation['source_user_id'] != $gBitUser->mUserId ) {
-				/* TODO: Should probably just join what we need in the getModeration request */
+				// TODO: Should probably just join what we need in the getModeration request
 				$gBitUser->mUserId = $moderation['source_user_id'];
 				$gBitUser->load();
 				$source_user = $gBitUser;
@@ -56,6 +56,7 @@ if (isset($_REQUEST['moderation_id'])) {
 		$gBitSystem->setHttpStatus(404);
 		$gBitSystem->fatalError(tra("There is no moderation with that id."));
 	}
+	*/
 }
 
 if (!$gBitUser->isAdmin()) {

@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version $Header: /cvsroot/bitweaver/_bit_moderation/ModerationSystem.php,v 1.11 2008/03/21 04:46:05 nickpalmer Exp $
+ * @version $Header: /cvsroot/bitweaver/_bit_moderation/ModerationSystem.php,v 1.12 2008/04/05 15:49:39 nickpalmer Exp $
  *
  * +----------------------------------------------------------------------+
  * | Copyright ( c ) 2008, bitweaver.org
@@ -23,7 +23,7 @@
  * can use to register things for moderation and
  *
  * @author   nick <nick@sluggardy.net>
- * @version  $Revision: 1.11 $
+ * @version  $Revision: 1.12 $
  * @package  moderation
  */
 
@@ -75,7 +75,8 @@ class ModerationSystem extends LibertyContent {
 							  $pModerationGroup = NULL,
 							  $pContentId = NULL,
 							  $pRequest = NULL,
-							  $pState = MODERATION_PENDING ) {
+							  $pState = MODERATION_PENDING,
+							  $pDataHash = NULL) {
 		global $gBitSystem, $gBitUser;
 		$moderationId = -1;
 		// Validate package
@@ -99,6 +100,9 @@ class ModerationSystem extends LibertyContent {
 					$store['type'] = $pType;
 					$store['request'] = $pRequest;
 					$store['status'] = $pState;
+					if (!empty($pDataHash)) {
+						$store['data'] = serialize($pDataHash);
+					}
 
 					// Keeping the transaction as short as possible
 					$this->mDb->StartTrans();
@@ -365,6 +369,9 @@ class ModerationSystem extends LibertyContent {
 		if (!empty($result)) {
 			$result = $result[0];
 			$result['transitions'] = $this->getTransitions( $result );
+			if (!empty($result['data'])) {
+				$result['data'] = unserialize($result['data']);
+			}
 		}
 
 		return $result;
@@ -480,6 +487,9 @@ class ModerationSystem extends LibertyContent {
 		$results = $this->mDb->getAssoc($query, $bindVars);
 		foreach ($results as $id => $data) {
 			$results[$id]['transitions'] = $this->getTransitions($data);
+			if (!empty($data['data'])) {
+				$results[$id]['data'] = unserialize($data['data']);
+			}
 		}
 
 		$query = "SELECT count(*) from `".BIT_DB_PREFIX."moderation` m LEFT JOIN `".BIT_DB_PREFIX."liberty_content` lc ON (m.`content_id` = lc.`content_id`)".$joinSql." ".$whereSql;
