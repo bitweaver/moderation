@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version $Header: /cvsroot/bitweaver/_bit_moderation/ModerationSystem.php,v 1.14 2008/04/07 21:50:07 wjames5 Exp $
+ * @version $Header: /cvsroot/bitweaver/_bit_moderation/ModerationSystem.php,v 1.15 2008/04/07 22:01:49 nickpalmer Exp $
  *
  * +----------------------------------------------------------------------+
  * | Copyright ( c ) 2008, bitweaver.org
@@ -23,7 +23,7 @@
  * can use to register things for moderation and
  *
  * @author   nick <nick@sluggardy.net>
- * @version  $Revision: 1.14 $
+ * @version  $Revision: 1.15 $
  * @package  moderation
  */
 
@@ -437,7 +437,6 @@ class ModerationSystem extends LibertyContent {
 
 		// Now figure out our part of WHERE
 		$first = true;
-		$argsPrefix = "m";
 		$args = array('moderator_user_id',
 					  'moderator_group_id',
 					  'package',
@@ -447,25 +446,24 @@ class ModerationSystem extends LibertyContent {
 					  'content_id');
 
 		$emptyWhere = empty($whereSql);
+		$subclause = ($joiner == ' OR ' && !$emptyWhere);
 		foreach ($args as $arg) {
 			if ( ! empty( $pListHash[$arg] ) ) {
 				// Do we need to open the ORed clause?
-				if ($first && $joiner == ' OR ' && !$emptyWhere) {
+				if ($first && $subclause) {
 					$whereSql .= ' AND ( ';
 				}
 				if (is_array($pListHash[$arg])) {
-					if (!$first) {
+					if ((!$emptyWhere &&!$subclause) || !$first) {
 						$whereSql .= $joiner;
 					}
-					$whereSql .= $argsPrefix.'.`'.$arg."` IN (". implode( ',',array_fill( 0,count( $pListHash[$arg] ),'?' ) ). ")";
+					$whereSql .= 'm.`'.$arg."` IN (". implode( ',',array_fill( 0,count( $pListHash[$arg] ),'?' ) ). ")";
 					$bindVars = array_merge($bindVars, $pListHash[$arg]);
 				} else {
-			// an AND seems needed even on the first.
-			// case was GroupsPackage:join.php -wjames5
-			//		if (!$first) {
+					if ((!$emptyWhere && !$subclause) || !$first) {
 						$whereSql .= $joiner;
-			//		}
-					$whereSql .= $argsPrefix.'.`'.$arg."` = ?";
+					}
+					$whereSql .= 'm.`'.$arg."` = ?";
 					$bindVars[] = $pListHash[$arg];
 				}
 				$first = false;
@@ -473,7 +471,7 @@ class ModerationSystem extends LibertyContent {
 		}
 
 		// Do we need to close the ORed clause
-		if (!$first && $joiner == ' OR ' && !$emptyWhere) {
+		if (!$first && $subclause) {
 			$whereSql .= ' ) ';
 		}
 
@@ -488,6 +486,7 @@ class ModerationSystem extends LibertyContent {
 
 		// Extra moderation_id for association
 		$query = "SELECT m.`moderation_id` as `hash_key`, m.*, lc.title ".$selectSql." from `".BIT_DB_PREFIX."moderation` m LEFT JOIN `".BIT_DB_PREFIX."liberty_content` lc ON (m.`content_id` = lc.`content_id`) ".$joinSql." ".$whereSql." ORDER BY `package`, `type`, `status` ";
+
 		$results = $this->mDb->getAssoc($query, $bindVars);
 		foreach ($results as $id => $data) {
 			$results[$id]['transitions'] = $this->getTransitions($data);
