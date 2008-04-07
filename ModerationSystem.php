@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version $Header: /cvsroot/bitweaver/_bit_moderation/ModerationSystem.php,v 1.12 2008/04/05 15:49:39 nickpalmer Exp $
+ * @version $Header: /cvsroot/bitweaver/_bit_moderation/ModerationSystem.php,v 1.13 2008/04/07 17:12:05 wjames5 Exp $
  *
  * +----------------------------------------------------------------------+
  * | Copyright ( c ) 2008, bitweaver.org
@@ -23,7 +23,7 @@
  * can use to register things for moderation and
  *
  * @author   nick <nick@sluggardy.net>
- * @version  $Revision: 1.12 $
+ * @version  $Revision: 1.13 $
  * @package  moderation
  */
 
@@ -436,6 +436,7 @@ class ModerationSystem extends LibertyContent {
 
 		// Now figure out our part of WHERE
 		$first = true;
+		$argsPrefix = "m";
 		$args = array('moderator_user_id',
 					  'moderator_group_id',
 					  'package',
@@ -455,13 +456,15 @@ class ModerationSystem extends LibertyContent {
 					if (!$first) {
 						$whereSql .= $joiner;
 					}
-					$whereSql .= '`'.$arg."` IN (". implode( ',',array_fill( 0,count( $pListHash[$arg] ),'?' ) ). ")";
+					$whereSql .= $argsPrefix.'.`'.$arg."` IN (". implode( ',',array_fill( 0,count( $pListHash[$arg] ),'?' ) ). ")";
 					$bindVars = array_merge($bindVars, $pListHash[$arg]);
 				} else {
-					if (!$first) {
+			// an AND seems needed even on the first.
+			// case was GroupsPackage:join.php -wjames5
+			//		if (!$first) {
 						$whereSql .= $joiner;
-					}
-					$whereSql .= '`'.$arg."` = ?";
+			//		}
+					$whereSql .= $argsPrefix.'.`'.$arg."` = ?";
 					$bindVars[] = $pListHash[$arg];
 				}
 				$first = false;
