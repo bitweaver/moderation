@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version $Header: /cvsroot/bitweaver/_bit_moderation/ModerationSystem.php,v 1.15 2008/04/07 22:01:49 nickpalmer Exp $
+ * @version $Header: /cvsroot/bitweaver/_bit_moderation/ModerationSystem.php,v 1.16 2008/04/16 15:18:48 wjames5 Exp $
  *
  * +----------------------------------------------------------------------+
  * | Copyright ( c ) 2008, bitweaver.org
@@ -23,7 +23,7 @@
  * can use to register things for moderation and
  *
  * @author   nick <nick@sluggardy.net>
- * @version  $Revision: 1.15 $
+ * @version  $Revision: 1.16 $
  * @package  moderation
  */
 
@@ -74,6 +74,7 @@ class ModerationSystem extends LibertyContent {
 							  $pType,
 							  $pModerationUser = NULL,
 							  $pModerationGroup = NULL,
+							  $pModerationPerm = NULL,
 							  $pContentId = NULL,
 							  $pRequest = NULL,
 							  $pState = MODERATION_PENDING,
@@ -86,7 +87,8 @@ class ModerationSystem extends LibertyContent {
 			if ( in_array( $pType, $this->mPackages[$pPackage]['types'] ) ) {
 				// Validate that we have a user or group
 				if ( ! ( empty( $pModerationUser ) and
-						 empty( $pModerationGroup ) ) ) {
+						empty( $pModerationGroup ) and 
+						empty( $pModerationPerm  ) ) ) {
 					// @TODO: Validate the $pState
 
 					// Do the storage into the right table
@@ -95,6 +97,7 @@ class ModerationSystem extends LibertyContent {
 					$store = array();
 					$store['moderator_user_id'] = $pModerationUser;
 					$store['moderator_group_id'] = $pModerationGroup;
+					$store['moderator_perm_name'] = $pModerationPerm;
 					$store['source_user_id'] = $gBitUser->mUserId;
 					$store['content_id'] = $pContentId;
 					$store['package'] = $pPackage;
@@ -117,7 +120,7 @@ class ModerationSystem extends LibertyContent {
 					$moderationId = $store['moderation_id'];
 				}
 				else {
-					$gBitSystem->fatalError(tra("Moderation user or moderation group must be set."));
+					$gBitSystem->fatalError(tra("Moderation user or moderation group or moderation perm name must be set."));
 				}
 			}
 			else {
@@ -276,11 +279,20 @@ class ModerationSystem extends LibertyContent {
 		// Load the information
 		$moderationInfo = $this->getModeration( $pRequestId );
 		if ( ! empty( $moderationInfo ) ) {
+			$isValidUser = FALSE;
 			// Validate that the current user is a moderator
 			if ( $gBitUser->isAdmin() ||
 				 $gBitUser->mUserId == $moderationInfo['moderator_user_id'] or
 				 $gBitUser->isInGroup( $moderationInfo['moderator_group_id'] ) ) {
+				$isValidUser = TRUE;
+			// if those checks fail then lets bother loading up the object and checking the perm if we have one  
+			 }elseif( !empty(  $moderationInfo['moderator_perm_name'] ) && 
+				 				$obj = LibertyBase::getLibertyObject( $_REQUEST['content_id'] ) && 
+								$obj->hasUserPermission(  $moderationInfo['moderator_perm_name'] ) ){
+				$isValidUser = TRUE;
+			}
 
+			if( $isValidUser ){
 				// Some shorthands for current state
 				$pkg = $moderationInfo['package'];
 				$type = $moderationInfo['type'];
@@ -439,6 +451,7 @@ class ModerationSystem extends LibertyContent {
 		$first = true;
 		$args = array('moderator_user_id',
 					  'moderator_group_id',
+					  'moderator_perm_name',
 					  'package',
 					  'type',
 					  'status',
@@ -483,6 +496,17 @@ class ModerationSystem extends LibertyContent {
 			}
 			$whereSql = " WHERE " . $whereSql;
 		}
+
+        global $gBitUser;
+        
+        $joinSql .= "LEFT OUTER JOIN `".BIT_DB_PREFIX."liberty_content_permissions` lcperm ON (m.`content_id`=lcperm.`content_id`)                                     
+					  LEFT OUTER JOIN `".BIT_DB_PREFIX."users_groups_map` ugsm ON (ugsm.`group_id`=lcperm.`group_id`) ";
+
+        $whereSql .= " AND ( lcperm.perm_name IS NULL OR ( lcperm.perm_name = m.moderator_perm_name AND ugsm.user_id = ? AND ( (lcperm.is_revoked != ? OR lcperm.is_revoked IS NULL) OR lc.`user_id`=? ) ) )";
+        
+        $bindVars[] = $gBitUser->mUserId;
+        $bindVars[] = "y";
+        $bindVars[] = $gBitUser->mUserId;
 
 		// Extra moderation_id for association
 		$query = "SELECT m.`moderation_id` as `hash_key`, m.*, lc.title ".$selectSql." from `".BIT_DB_PREFIX."moderation` m LEFT JOIN `".BIT_DB_PREFIX."liberty_content` lc ON (m.`content_id` = lc.`content_id`) ".$joinSql." ".$whereSql." ORDER BY `package`, `type`, `status` ";
