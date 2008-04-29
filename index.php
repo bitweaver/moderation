@@ -5,6 +5,7 @@ require_once('ModerationSystem.php');
 
 // Are we trying to look at a single moderation?
 if (isset($_REQUEST['moderation_id'])) {
+	// if an action is requested do that
 	if( !empty($_REQUEST['transition']) ) {
 		$gModerationSystem->setModerationReply($_REQUEST['moderation_id'],
 											   $_REQUEST['transition'],
@@ -12,29 +13,31 @@ if (isset($_REQUEST['moderation_id'])) {
 												NULL : $_REQUEST['reply']) );
 		bit_redirect(MODERATION_PKG_URL.'index.php');
 	}
-	/* We only show the list now...
+
 	$moderation = $gModerationSystem->getModeration($_REQUEST['moderation_id']);
 	// Do we have a valid moderation
 	if ( ! empty( $moderation ) ) {
 		// Verify that the user can see this moderation
 		if ( $gBitUser->isAdmin() ||
 			 $moderation['source_user_id'] == $gBitUser->mUserId ||
-			 ( ! empty($moderation['moderator_user_id']) &&
+			 ( !empty($moderation['moderator_user_id']) &&
 			   $moderation['moderator_user_id'] == $gBitUser->mUserId ) ||
-			 ( ! empty($moderation['moderation_group_id']) &&
-			   $gBitUser->isInGroup($moderation['moderation_group_id'] ) ) ) {
+			 ( !empty($moderation['moderation_group_id']) &&
+			 $gBitUser->isInGroup($moderation['moderation_group_id'] ) ) ||
+			 ( ($obj = LibertyBase::getLibertyObject( $moderation['content_id'] )) &&
+				 // special case for comments - check perm on the root object
+				 ( $obj->mType['content_type_guid'] == 'bitcomment' && !empty($moderation['moderator_perm_name']) && 
+				 $obj->getRootObj()->hasUserPermission($moderation['moderator_perm_name']) ) ||
+				 ( $obj->mType['content_type_guid'] != 'bitcomment' && !empty($moderation['moderator_perm_name']) && 
+				 $obj->hasUserPermission($moderation['moderator_perm_name']) )
+			 )
+		 	) {
 
 			// Assign the moderation
 			$gBitSmarty->assign('moderation', $moderation);
 
 			// Check which way it is going
 			if ( $moderation['source_user_id'] != $gBitUser->mUserId ) {
-				// TODO: Should probably just join what we need in the getModeration request
-				$gBitUser->mUserId = $moderation['source_user_id'];
-				$gBitUser->load();
-				$source_user = $gBitUser;
-				$gBitSmarty->assign('source_user', $source_user);
-
 				// Display the template
 				$gBitSystem->display('bitpackage:moderation/moderate.tpl', 'Moderate Request');
 
@@ -56,7 +59,6 @@ if (isset($_REQUEST['moderation_id'])) {
 		$gBitSystem->setHttpStatus(404);
 		$gBitSystem->fatalError(tra("There is no moderation with that id."));
 	}
-	*/
 }
 
 if (!$gBitUser->isAdmin()) {

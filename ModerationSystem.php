@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version $Header: /cvsroot/bitweaver/_bit_moderation/ModerationSystem.php,v 1.16 2008/04/16 15:18:48 wjames5 Exp $
+ * @version $Header: /cvsroot/bitweaver/_bit_moderation/ModerationSystem.php,v 1.17 2008/04/29 04:49:19 wjames5 Exp $
  *
  * +----------------------------------------------------------------------+
  * | Copyright ( c ) 2008, bitweaver.org
@@ -23,7 +23,7 @@
  * can use to register things for moderation and
  *
  * @author   nick <nick@sluggardy.net>
- * @version  $Revision: 1.16 $
+ * @version  $Revision: 1.17 $
  * @package  moderation
  */
 
@@ -282,13 +282,17 @@ class ModerationSystem extends LibertyContent {
 			$isValidUser = FALSE;
 			// Validate that the current user is a moderator
 			if ( $gBitUser->isAdmin() ||
-				 $gBitUser->mUserId == $moderationInfo['moderator_user_id'] or
-				 $gBitUser->isInGroup( $moderationInfo['moderator_group_id'] ) ) {
+				 $gBitUser->mUserId == $moderationInfo['moderator_user_id'] ||
+				 $gBitUser->isInGroup( $moderationInfo['moderator_group_id'] ) 
+				) {
 				$isValidUser = TRUE;
 			// if those checks fail then lets bother loading up the object and checking the perm if we have one  
 			 }elseif( !empty(  $moderationInfo['moderator_perm_name'] ) && 
-				 				$obj = LibertyBase::getLibertyObject( $_REQUEST['content_id'] ) && 
-								$obj->hasUserPermission(  $moderationInfo['moderator_perm_name'] ) ){
+				 				( $obj = LibertyBase::getLibertyObject( $moderationInfo['content_id'] ) ) && 
+								// special case for comments - check perm on the root object
+								( $obj->mType['content_type_guid'] == 'bitcomment' && $obj->getRootObj()->hasUserPermission($moderationInfo['moderator_perm_name']) ) ||
+								( $obj->mType['content_type_guid'] != 'bitcomment' && $obj->hasUserPermission($moderationInfo['moderator_perm_name']) )
+					){
 				$isValidUser = TRUE;
 			}
 
