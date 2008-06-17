@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version $Header: /cvsroot/bitweaver/_bit_moderation/admin/schema_inc.php,v 1.6 2008/04/16 15:18:48 wjames5 Exp $
+ * @version $Header: /cvsroot/bitweaver/_bit_moderation/admin/schema_inc.php,v 1.7 2008/06/17 16:33:31 lsces Exp $
  *
  * +----------------------------------------------------------------------+
  * | Copyright ( c ) 2008, bitweaver.org
@@ -22,7 +22,7 @@
  * This file contains the schema for the moderation package.
  *
  * @author   nick <nick@sluggardy.net>
- * @version  $Revision: 1.6 $
+ * @version  $Revision: 1.7 $
  * @package  moderation
  */
 
@@ -43,9 +43,9 @@ $tables = array(
     	request X,
     	reply X
     	CONSTRAINT '
-        	, CONSTRAINT `moderation_queue_moderator_user_id` FOREIGN KEY (`moderator_user_id`) REFERENCES `".BIT_DB_PREFIX."users_users` (`user_id`)
-        	, CONSTRAINT `moderation_queue_moderator_group_id` FOREIGN KEY (`moderator_group_id`) REFERENCES `".BIT_DB_PREFIX."users_groups` (`group_id`)
-			, CONSTRAINT `moderation_queue_moderator_perm_name` FOREIGN KEY (`moderator_perm_name`) REFERENCES `".BIT_DB_PREFIX."users_permissions` (`perm_name`)
+        	, CONSTRAINT `moderation_queue_mod_user_id` FOREIGN KEY (`moderator_user_id`) REFERENCES `".BIT_DB_PREFIX."users_users` (`user_id`)
+        	, CONSTRAINT `moderation_queue_mod_group_id` FOREIGN KEY (`moderator_group_id`) REFERENCES `".BIT_DB_PREFIX."users_groups` (`group_id`)
+			, CONSTRAINT `moderation_queue_mod_perm_name` FOREIGN KEY (`moderator_perm_name`) REFERENCES `".BIT_DB_PREFIX."users_permissions` (`perm_name`)
         	, CONSTRAINT `moderation_queue_content_id` FOREIGN KEY (`content_id`) REFERENCES `".BIT_DB_PREFIX."liberty_content` (`content_id`)
         	, CONSTRAINT `moderation_queue_source_user_id` FOREIGN KEY (`source_user_id`) REFERENCES `".BIT_DB_PREFIX."users_users` (`user_id`)
 		'
