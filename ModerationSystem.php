@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version $Header: /cvsroot/bitweaver/_bit_moderation/ModerationSystem.php,v 1.17 2008/04/29 04:49:19 wjames5 Exp $
+ * @version $Header: /cvsroot/bitweaver/_bit_moderation/ModerationSystem.php,v 1.18 2008/06/18 09:19:37 lsces Exp $
  *
  * +----------------------------------------------------------------------+
  * | Copyright ( c ) 2008, bitweaver.org
@@ -23,10 +23,13 @@
  * can use to register things for moderation and
  *
  * @author   nick <nick@sluggardy.net>
- * @version  $Revision: 1.17 $
+ * @version  $Revision: 1.18 $
  * @package  moderation
  */
 
+/**
+ * Initialization
+ */
 global $gModerationSystem;
 
 /* The required moderation states. */
@@ -47,6 +50,11 @@ define( 'MODERATION_DEVELOPMENT', TRUE );
 
 require_once( LIBERTY_PKG_PATH . 'LibertyContent.php' );
 
+/**
+ * ModerationSystem 
+ * 
+ * @uses LibertyContent
+ */
 class ModerationSystem extends LibertyContent {
 
 	/**
