@@ -39,12 +39,12 @@ if (isset($_REQUEST['moderation_id'])) {
 			// Check which way it is going
 			if ( $moderation['source_user_id'] != $gBitUser->mUserId ) {
 				// Display the template
-				$gBitSystem->display('bitpackage:moderation/moderate.tpl', 'Moderate Request');
+				$gBitSystem->display('bitpackage:moderation/moderate.tpl', 'Moderate Request', array( 'display_mode' => 'display' ));
 
 			}
 			else {
 				// No need for the source user.
-				$gBitSystem->display('bitpackage:moderation/request.tpl', 'My Request');
+				$gBitSystem->display('bitpackage:moderation/request.tpl', 'My Request', array( 'display_mode' => 'display' ));
 			}
 
 			die;
@@ -73,6 +73,6 @@ else {
 $myModerations = $gModerationSystem->getList($myModerationHash);
 $gBitSmarty->assign('myModerations', $myModerations);
 
-$gBitSystem->display('bitpackage:moderation/list_moderations.tpl', 'Moderations');
+$gBitSystem->display('bitpackage:moderation/list_moderations.tpl', 'Moderations', array( 'display_mode' => 'display' ));
 
 ?>

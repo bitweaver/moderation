@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version $Header: /cvsroot/bitweaver/_bit_moderation/ModerationSystem.php,v 1.19 2008/06/18 10:10:08 lsces Exp $
+ * @version $Header: /cvsroot/bitweaver/_bit_moderation/ModerationSystem.php,v 1.20 2008/06/25 22:21:14 spiderr Exp $
  *
  * +----------------------------------------------------------------------+
  * | Copyright ( c ) 2008, bitweaver.org
@@ -23,7 +23,7 @@
  * can use to register things for moderation and
  *
  * @author   nick <nick@sluggardy.net>
- * @version  $Revision: 1.19 $
+ * @version  $Revision: 1.20 $
  * @package  moderation
  */
 
@@ -542,7 +542,7 @@ class ModerationSystem extends LibertyContent {
 		global $gBitSmarty, $gBitSystem;
 		$gBitSmarty->assign_by_ref( 'modMsg', $pMsg );
 		$title = $pTitle != NULL ? $pTitle : tra('Moderation');
-		$gBitSystem->display( 'bitpackage:moderation/display_msg.tpl', $title );
+		$gBitSystem->display( 'bitpackage:moderation/display_msg.tpl', $title , array( 'display_mode' => 'display' ));
 		die;
 	}	
 }
