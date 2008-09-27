@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version $Header: /cvsroot/bitweaver/_bit_moderation/ModerationSystem.php,v 1.20 2008/06/25 22:21:14 spiderr Exp $
+ * @version $Header: /cvsroot/bitweaver/_bit_moderation/ModerationSystem.php,v 1.21 2008/09/27 10:33:11 nickpalmer Exp $
  *
  * +----------------------------------------------------------------------+
  * | Copyright ( c ) 2008, bitweaver.org
@@ -23,7 +23,7 @@
  * can use to register things for moderation and
  *
  * @author   nick <nick@sluggardy.net>
- * @version  $Revision: 1.20 $
+ * @version  $Revision: 1.21 $
  * @package  moderation
  */
 
@@ -477,6 +477,9 @@ class ModerationSystem extends LibertyContent {
 				// Do we need to open the ORed clause?
 				if ($first && $subclause) {
 					$whereSql .= ' AND ( ';
+				}
+				elseif ($first && !$emptyWhere) {
+					$whereSql .= ' AND ';
 				}
 				if (is_array($pListHash[$arg])) {
 					if ((!$emptyWhere &&!$subclause) || !$first) {
