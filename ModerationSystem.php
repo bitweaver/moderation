@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version $Header: /cvsroot/bitweaver/_bit_moderation/ModerationSystem.php,v 1.22 2008/09/28 12:06:34 nickpalmer Exp $
+ * @version $Header: /cvsroot/bitweaver/_bit_moderation/ModerationSystem.php,v 1.23 2008/11/27 15:36:36 nickpalmer Exp $
  *
  * +----------------------------------------------------------------------+
  * | Copyright ( c ) 2008, bitweaver.org
@@ -23,7 +23,7 @@
  * can use to register things for moderation and
  *
  * @author   nick <nick@sluggardy.net>
- * @version  $Revision: 1.22 $
+ * @version  $Revision: 1.23 $
  * @package  moderation
  */
 
@@ -61,6 +61,12 @@ class ModerationSystem extends LibertyContent {
 	 * The package registrations
 	 */
 	var $mPackages;
+
+	/**
+	 * Packages being observed
+	 * This is a hash of $package => array( $observer => $callback )
+	 */
+	var $mObserved;
 
 	/**
 	 * Constructs a ModerationSystem. This shouldn't really be called.
@@ -221,6 +227,25 @@ class ModerationSystem extends LibertyContent {
 	}
 
 	/**
+	 * Registers a function which gets called with a moderation when the
+	 * state changes on a moderation and the transition is to
+	 * a given state in the observed package.
+	 *
+	 * This allows a package to take action when another package
+	 * is transitioning some moderated content and take action
+	 * but can not effect the transition the controling package is
+	 * making.
+	 *
+	 * @param $pPackage - The package registering the observer
+	 * @param $pObservedPkg - The name of the package being observed
+	 * @param $pFunction - The callback function to be called
+	 *
+	 **/
+	function registerModerationObserver( $pPackage, $pObservedPkg, $pFunction ) {
+		$this->mObserved[$pObservedPkg][$pPackage] = $pFunction;
+	}
+
+	/**
 	 * Validates that a transition map has the right structure.
 	 * Note that this does not validate that the entire state tree
 	 * has the required transisitons to lead to a delete state or that
@@ -362,7 +387,17 @@ class ModerationSystem extends LibertyContent {
 							$update['responsible'] = $moderationInfo['next_responsible'];
 							$this->mDb->associateUpdate( $table, $update, $locId);
 						}
+						
+						// Now notify any observers
+						if ( !empty( $this->mObserved ) &&
+						     !empty( $this->mObserved[$moderationInfo['package']] ) ) {
+							foreach ( $this->mObserved[$moderationInfo['package']] as $observer => $callback ) {
+								$callback($moderationInfo);
+							}
+						}
+
 						$this->mDb->CompleteTrans();
+
 					}
 					else {
 						// Just in case rollback any changes.
@@ -388,9 +423,20 @@ class ModerationSystem extends LibertyContent {
 	/**
 	 * Loads the data for a given moderation id.
 	 */
-	function getModeration( $pRequestId ) {
-		$query = "SELECT m.*, lc.title from `".BIT_DB_PREFIX."moderation` m LEFT JOIN `".BIT_DB_PREFIX."liberty_content` lc ON (m.`content_id` = lc.`content_id`) WHERE `moderation_id` = ?";
-		$result = $this->mDb->getArray($query, array($pRequestId));
+	function getModeration( $pRequestId = NULL, $pContentId = NULL ) {
+		$query = "SELECT m.*, lc.title from `".BIT_DB_PREFIX."moderation` m LEFT JOIN `".BIT_DB_PREFIX."liberty_content` lc ON (m.`content_id` = lc.`content_id`) WHERE ";
+		if( !empty($pRequestId) ) {
+			$query .= "m.`moderation_id` = ?";
+			$bindVars = array($pRequestId);
+		} elseif( !empty($pContentId) ) {
+			$query .= "m.`content_id` = ?";
+			$bindVars = array($pContentId);
+		} else {
+			return NULL;
+		}
+
+		$result = $this->mDb->getArray($query, $bindVars);
+
 		if (!empty($result)) {
 			$result = $result[0];
 			$result['transitions'] = $this->getTransitions( $result );

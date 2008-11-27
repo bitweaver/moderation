@@ -4,7 +4,7 @@ require_once('../bit_setup_inc.php');
 require_once('ModerationSystem.php');
 
 // Are we trying to look at a single moderation?
-if (isset($_REQUEST['moderation_id'])) {
+if (!empty($_REQUEST['moderation_id'])) {
 	// if an action is requested do that
 	if( !empty($_REQUEST['transition']) ) {
 		$gModerationSystem->setModerationReply($_REQUEST['moderation_id'],
