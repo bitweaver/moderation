@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version $Header: /cvsroot/bitweaver/_bit_moderation/ModerationSystem.php,v 1.23 2008/11/27 15:36:36 nickpalmer Exp $
+ * @version $Header: /cvsroot/bitweaver/_bit_moderation/ModerationSystem.php,v 1.24 2009/10/01 13:45:44 wjames5 Exp $
  *
  * +----------------------------------------------------------------------+
  * | Copyright ( c ) 2008, bitweaver.org
@@ -9,7 +9,7 @@
  * | All Rights Reserved. See copyright.txt for details and a complete
  * | list of authors.
  * | Licensed under the GNU LESSER GENERAL PUBLIC LICENSE.
- * | See license.txt for details
+ * | See http://www.gnu.org/copyleft/lesser.html for details
  * |
  * | For comments, please use phpdocu.sourceforge.net standards!!!
  * | -> see http://phpdocu.sourceforge.net/
@@ -23,7 +23,7 @@
  * can use to register things for moderation and
  *
  * @author   nick <nick@sluggardy.net>
- * @version  $Revision: 1.23 $
+ * @version  $Revision: 1.24 $
  * @package  moderation
  */
 
