@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version $Header: /cvsroot/bitweaver/_bit_moderation/admin/schema_inc.php,v 1.9 2009/10/01 14:17:02 wjames5 Exp $
+ * @version $Header$
  *
  * +----------------------------------------------------------------------+
  * | Copyright ( c ) 2008, bitweaver.org
@@ -22,7 +22,7 @@
  * This file contains the schema for the moderation package.
  *
  * @author   nick <nick@sluggardy.net>
- * @version  $Revision: 1.9 $
+ * @version  $Revision$
  * @package  moderation
  */
 
