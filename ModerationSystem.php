@@ -76,7 +76,7 @@ class ModerationSystem extends LibertyContent {
 	function ModerationSystem() {
 		// Not much to do here
 		$mPackages = array();
-		LibertyContent::LibertyContent();
+		parent::__construct();
 	}
 
     /**
