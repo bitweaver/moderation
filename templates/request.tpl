@@ -17,7 +17,7 @@
 				<textarea name="reply" id="reply-{$moderation.moderation_id}"></textarea>
 			{/if}
 		</div>
-		<div class="row submit">
+		<div class="control-group submit">
 			{foreach from=$moderation.transitions item=transition}
 				<input type=submit name="transition" value="{$transition}" />&nbsp;
 			{/foreach}

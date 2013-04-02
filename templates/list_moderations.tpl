@@ -21,7 +21,7 @@
 				{/if}
 				{assign var=last_package value=$moderation.package}
 				{assign var=last_type value=$moderation.type}
-					<div class="row">
+					<div class="control-group">
 						<h3>{$moderation.package|ucwords}</h3>
 							<ul>
 								<li><h4>{$moderation.type|ucwords}</h4>
@@ -57,7 +57,7 @@
 				{/if}
 				{assign var=last_package value=$moderation.package}
 				{assign var=last_type value=$moderation.type}
-					<div class="row">
+					<div class="control-group">
 						<h3>{$moderation.package|ucwords}</h3>
 							<ul>
 								<li><h4>{$moderation.type|ucwords}</h4>
@@ -81,7 +81,7 @@
 	{/if}
 	
 	{if !$had_request && !$had_moderation}
-	<div class="row">
+	<div class="control-group">
 		{tr}You have nothing to moderate or awaiting moderation{/tr}
 	</div>
 	{/if}
