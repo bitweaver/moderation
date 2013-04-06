@@ -31,7 +31,7 @@
 				<li><h4>{$moderation.type|ucwords}</h4>
 					</ul>
 			{/if}
-			<li>{include file=`$gModerationSystem->mPackages[$moderation.package].moderate_tpl`}</li>
+			<li>{include file=$gModerationSystem->mPackages[$moderation.package].moderate_tpl}</li>
 		{/if}
 	{/foreach}
 	{if $had_moderation}
@@ -67,7 +67,7 @@
 				<li><h4>{$moderation.type|ucwords}</h4>
 					</ul>
 			{/if}
-			<li>{include file=`$gModerationSystem->mPackages[$moderation.package].request_tpl`}</li>
+			<li>{include file=$gModerationSystem->mPackages[$moderation.package].request_tpl}</li>
 		{/if}
 	{/foreach}
 	{if $had_request}
